@@ -126,27 +126,10 @@ export default function HomeScreen() {
 
           <View style={styles.bannerRight}>
             <Image
-              source="https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=70"
+              source="https://customer-assets.emergentagent.com/job_clean-reserve-app/artifacts/aqq89zak_IMG_1705.jpg"
               style={styles.bannerImage}
               contentFit="cover"
             />
-            <View style={styles.bannerBadge}>
-              <View style={styles.bannerBadgeAvatars}>
-                {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.avatarDot,
-                      { left: i * 12, backgroundColor: ["#FFC107", "#22C55E", "#1453E5"][i] },
-                    ]}
-                  />
-                ))}
-              </View>
-              <View style={{ marginLeft: 38 }}>
-                <Text style={styles.bannerBadgeNum}>500+</Text>
-                <Text style={styles.bannerBadgeText}>clientes satisfeitos</Text>
-              </View>
-            </View>
           </View>
         </View>
 
@@ -218,7 +201,10 @@ export default function HomeScreen() {
         <View style={styles.plansCard} testID="home-plans">
           <View style={styles.plansLeft}>
             <View style={styles.plansIcon}>
-              <MaterialCommunityIcons name="refresh" size={22} color={colors.accent} />
+              <MaterialCommunityIcons name="sync" size={22} color={colors.accent} />
+              <View style={styles.plansIconBolt}>
+                <MaterialCommunityIcons name="flash" size={10} color={colors.accent} />
+              </View>
             </View>
             <Text style={styles.plansTitle}>Planos de limpezas{"\n"}recorrentes</Text>
             <Text style={styles.plansDesc}>
@@ -328,8 +314,8 @@ const styles = StyleSheet.create({
   badgeText: { color: "#fff", fontSize: 9, fontWeight: "700" },
 
   // Title
-  title: { fontSize: 22, fontWeight: "800", color: colors.text, marginTop: 4 },
-  subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
+  title: { fontSize: 19, fontWeight: "800", color: colors.text, marginTop: 4 },
+  subtitle: { fontSize: 11, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
 
   // Search
   searchRow: { flexDirection: "row", gap: 10, marginBottom: spacing.md },
@@ -507,23 +493,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  plansTitle: { color: "#fff", fontSize: 14, fontWeight: "800", lineHeight: 18 },
-  plansDesc: { color: "rgba(255,255,255,0.8)", fontSize: 11, marginTop: 6, lineHeight: 14 },
+  plansIconBolt: {
+    position: "absolute",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.brandDark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  plansTitle: { color: "#fff", fontSize: 12, fontWeight: "800", lineHeight: 15 },
+  plansDesc: { color: "rgba(255,255,255,0.8)", fontSize: 10, marginTop: 5, lineHeight: 13 },
   plansRight: { flex: 1.4, flexDirection: "row", gap: 6 },
   planCard: {
     flex: 1,
     backgroundColor: "#fff",
     borderRadius: radii.md,
     paddingVertical: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     alignItems: "center",
     position: "relative",
   },
   planCardPopular: { borderWidth: 2, borderColor: colors.accent },
-  planLabel: { fontSize: 11, color: colors.text, fontWeight: "700" },
-  planDiscount: { fontSize: 14, color: colors.brand, fontWeight: "800", marginTop: 2 },
-  planFromLabel: { fontSize: 9, color: colors.textMuted, marginTop: 4 },
-  planFromPrice: { fontSize: 12, color: colors.text, fontWeight: "800" },
+  planLabel: { fontSize: 10, color: colors.text, fontWeight: "700" },
+  planDiscount: { fontSize: 12, color: colors.brand, fontWeight: "800", marginTop: 2 },
+  planFromLabel: { fontSize: 8, color: colors.textMuted, marginTop: 4 },
+  planFromPrice: { fontSize: 10, color: colors.text, fontWeight: "800" },
   popularBadge: {
     position: "absolute",
     bottom: -8,
@@ -534,7 +529,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: "center",
   },
-  popularText: { fontSize: 9, fontWeight: "800", color: colors.brandDark },
+  popularText: { fontSize: 8, fontWeight: "800", color: colors.brandDark },
 
   // Steps
   stepsTitle: {

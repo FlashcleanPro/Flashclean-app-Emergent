@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only verification of the 5 visual fixes on /app/frontend/app/(tabs)/home.tsx (banner image, badge removal, title shrink, plans-card text shrink, plans icon sync+bolt). Logged in as demo@flashclean.pt on the Expo web preview at 375x667. All 7 checks pass via live DOM measurements: (1) banner <img> src = https://customer-assets.emergentagent.com/job_clean-reserve-app/artifacts/aqq89zak_IMG_1705.jpg with no 'unsplash' substring; (2) home-banner innerText contains no '500+' nor 'clientes satisfeitos'; (3) title 'O que pretende limpar hoje?' computed fontSize = 19px; (4) plan-weekly/plan-biweekly/plan-monthly are all visible (118px tall) and their leaf children show no horizontal OR vertical overflow (scrollWidth<=clientWidth, scrollHeight<=clientHeight) — every required string renders fully: Semanal/-20%/Desde/8,99€/h/Mais escolhido, Quinzenal/-10%/Desde/9,99€/h, Mensal/-5%/Desde/14,99€/h; (5) plans-card leaf font-sizes are 12/10/10/12/8/10/8 px (plansTitle/plansDesc/planLabel/planDiscount/planFromLabel/planFromPrice/popularText) — exactly the spec; (6) plans-card icon contains BOTH a sync MaterialCommunityIcon (codepoint U+F04E6) and a flash bolt MaterialCommunityIcon (codepoint U+F0241) inside its overlay container; (7) 'Reserva em menos de 60 segundos' steps row and all 5 bottom tabs (tab-home/tab-servicos/tab-reserva-rapida/tab-reservas/tab-perfil) are rendered. Screenshots confirm the visual match.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "global",
+        "issues": [
+          "Pre-existing only (already reported in iteration_1/2): RN Web warnings 'shadow* style props are deprecated. Use boxShadow' and 'props.pointerEvents is deprecated. Use style.pointerEvents'. Not introduced by this fix."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_1.json", "/app/test_reports/iteration_2.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Banner image now sourced from customer-assets.emergentagent.com URL via expo-image — correct.",
+    "bannerBadge View + avatars block fully removed from JSX (orphaned styles bannerBadge/avatarDot/bannerBadgeAvatars/bannerBadgeNum/bannerBadgeText still exist in StyleSheet but are unused — purely cosmetic dead code, safe to leave).",
+    "styles.title fontSize 19 and styles.subtitle fontSize 11 — matches spec.",
+    "Plans card fontSize map verified live: plansTitle 12 / plansDesc 10 / planLabel 10 / planDiscount 12 / planFromLabel 8 / planFromPrice 10 / popularText 8 — all ~15% smaller, no clipping observed.",
+    "plansIcon now stacks MaterialCommunityIcons 'sync' + absolutely-positioned 'flash' inside plansIconBolt — verified by codepoint inspection in DOM."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not requested)", "frontend": "100% (7/7 checks)"},
+  "seed_data_creation": "None. Logged in with existing demo@flashclean.pt.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All five user-reported visual fixes are live and validated. If any one regresses re-run the same DOM checks: (a) document.querySelector('[data-testid=home-banner] img').src must contain 'aqq89zak_IMG_1705'; (b) [data-testid=home-banner].innerText must not contain '500+' or 'clientes satisfeitos'; (c) getComputedStyle of the 'O que pretende limpar hoje?' node fontSize must be '19px'; (d) inside [data-testid=home-plans] no descendant should have scrollWidth>clientWidth or scrollHeight>clientHeight; (e) plans icon container must contain two MaterialCommunityIcons spans (codepoints f04e6 sync + f0241 flash).",
+  "rca_of_issue": "N/A — verification pass, no bugs found."
+}
