@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only verification of the home banner bug fix on /app/frontend/app/(tabs)/home.tsx. Logged in as demo@flashclean.pt via Expo web preview (375x667 mobile viewport) and inspected the [data-testid=home-banner] element with getBoundingClientRect + getComputedStyle. Banner now renders at exactly height=210px, borderTopLeftRadius=24px, with a 63.3% / 36.7% left/right split (left clearly wider). Every section below the banner is reachable by scrolling: home-benefits, service-card-casas, service-card-escritorios, service-card-pos-obra, home-plans (plan-weekly contains 'Mais escolhido'), and the 'Reserva em menos de 60 segundos' steps rail. All 5 bottom tabs (tab-home, tab-servicos, tab-reserva-rapida, tab-reservas, tab-perfil) are present and visible. Bug fix is fully validated.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "global",
+        "issues": [
+          "Pre-existing (already reported in iteration_1): RN Web deprecation warnings 'shadow* style props are deprecated. Use boxShadow'. Not introduced by this fix."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_1.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "styles.banner correctly uses fixed height: 210 (no longer minHeight), borderRadius: 24, overflow: hidden — matches the spec.",
+    "bannerLeft flex:6 / bannerRight flex:4 yields ~63/37 in the available width (343px content). This is within the 'roughly 60/40' spec and left is visibly wider — acceptable."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not requested)", "frontend": "100% on the 5 banner/home checks"},
+  "seed_data_creation": "None. Logged in with the existing demo@flashclean.pt account.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Home banner spec verified live via DOM measurements:\n  - data-testid=home-banner -> width 343 / height 210 / border-radius 24px / overflow hidden\n  - child[0] (bannerLeft) = 217px wide (63.3%), child[1] (bannerRight) = 126px wide (36.7%)\nIf the banner regresses, re-run the measurement snippet in iteration_2 (page.evaluate over getBoundingClientRect of [data-testid=home-banner].children). Sign-in testIDs to remember: sign-in-email-input / sign-in-password-input / sign-in-submit-button.",
+  "rca_of_issue": "Original bug was that styles.banner used minHeight:220 + flex layout, which let the banner expand vertically and push everything else off-screen. Fix in /app/frontend/app/(tabs)/home.tsx now sets a hard height:210 with overflow:hidden and borderRadius:24, plus flex:6 / flex:4 for the left/right children. Verified visually and programmatically — no further action needed."
+}

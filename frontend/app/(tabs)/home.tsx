@@ -359,12 +359,12 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: "row",
     backgroundColor: colors.brandDark,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
-    minHeight: 220,
+    height: 210,
     marginBottom: spacing.md,
   },
-  bannerLeft: { flex: 1.15, padding: 14, justifyContent: "center" },
+  bannerLeft: { flex: 6, padding: 14, justifyContent: "center" },
   promoTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bannerBtnText: { color: colors.brand, fontSize: 13, fontWeight: "800" },
-  bannerRight: { flex: 1, position: "relative" },
+  bannerRight: { flex: 4, position: "relative" },
   bannerImage: { width: "100%", height: "100%" },
   bannerBadge: {
     position: "absolute",
