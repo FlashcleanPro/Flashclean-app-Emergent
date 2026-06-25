@@ -1,0 +1,59 @@
+{
+  "summary": "Full backend + frontend regression for FlashClean MVP. After fixing one CRITICAL backend bug (sparse-unique google_sub index conflicting with explicit null in register payload), all 12 backend pytest cases pass (auth: login/register/me/logout, google-session invalid path, bookings create+list+auth-gating) and every requested frontend flow works end-to-end on the mobile web preview (sign-in → home → quick booking via central tab → booking appears in /reservas → servicos list → perfil email+Email pill+logout → back to sign-in). Demo user credentials from /app/memory/test_credentials.md were used as-is. All required testIDs are present.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "FIXED in this run. Register stored `google_sub: null` explicitly, but the unique sparse index on `google_sub` treats null as a value, not a missing field. After the seeded demo user existed, every subsequent password registration crashed with E11000 DuplicateKeyError → 500. Fix: removed `google_sub` key from the register doc (sparse index now skips it) AND ran a one-off `$unset` on existing demo user to remove its leftover null. Verified by re-running pytest (12/12 pass).",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "global",
+        "issues": [
+          "React Native Web deprecation warnings in console: `\"shadow*\" style props are deprecated. Use \"boxShadow\"` (from src/theme shadow.card / shadow.floating used across cards, buttons, tab bar). Non-blocking but should be migrated to the new `boxShadow` API for RN 0.76+ web compatibility.",
+          "Console also warns `props.pointerEvents is deprecated. Use style.pointerEvents` (likely from expo-router/RN internals)."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "package versions",
+        "issue": "Expo CLI reports mismatched versions for best-compat: expo@54.0.34 (expected ~54.0.35), expo-font@14.0.11 (expected ~14.0.12), expo-router@6.0.23 (expected ~6.0.24). Reference: /app/frontend/package.json"
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_flashclean_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Review the register fix in /app/backend/server.py (google_sub key removed). Consider also changing the startup index to a partial filter (`partialFilterExpression: {google_sub: {$type: 'string'}}`) to make the schema robust against future regressions.",
+    "Optional polish: migrate `shadow.*` style entries in src/theme to `boxShadow` to silence RN Web warnings.",
+    "Optional: align expo / expo-font / expo-router minor versions to the values Expo CLI suggests."
+  ],
+  "critical_code_review_comments": [
+    "register() stored an explicit null for google_sub — incompatible with a sparse unique index. Fixed.",
+    "Auth flow uses two parallel session lookups (jwt-jti and Emergent session_token) — works, but consider an explicit `provider` column on the token itself to avoid the dual query path.",
+    "Logout endpoint relies on `Depends(get_current_user)` before revoking — if the caller is already unauthenticated it 401s instead of being idempotent. Minor."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (register doc no longer sets google_sub=None)",
+    "/app/backend/tests/test_flashclean_api.py (new)",
+    "/app/backend/tests/conftest.py (new)",
+    "MongoDB: $unset google_sub from existing demo user doc"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% on tested flows"},
+  "seed_data_creation": "Tests generate unique users like `test_<uuid>@flashclean.pt` and bookings prefixed `TEST `; demo user (demo@flashclean.pt) untouched apart from the one-off $unset of leftover google_sub:null field needed to clear the DuplicateKeyError state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live in /app/backend/tests/test_flashclean_api.py. Use base URL from /app/frontend/.env (EXPO_PUBLIC_BACKEND_URL). Demo credentials in /app/memory/test_credentials.md. If new password users start failing again with E11000 on google_sub, check that server.py is NOT storing google_sub:null and that the DB has no leftover docs with google_sub:null (run `db.users.updateMany({google_sub:null},{$unset:{google_sub:''}})`).",
+  "rca_of_issue": "RCA — POST /api/auth/register 500: MongoDB sparse unique indexes ignore documents where the indexed field is *missing*, but DO index documents where the field exists with value null. server.py inserted `{... 'google_sub': None ...}` for every password registration, so the first password user occupied the {google_sub:null} slot in `google_sub_1` and all subsequent password registrations raised DuplicateKeyError → 500. Repro: register any new email after the demo user was seeded → 500. Mitigation applied: (1) drop `google_sub` key from the insert payload so the sparse index excludes the document; (2) one-off `$unset google_sub` on the existing demo user doc to remove its leftover null. Verified with 12/12 pytest pass."
+}
