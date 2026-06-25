@@ -126,7 +126,7 @@ export default function HomeScreen() {
 
           <View style={styles.bannerRight}>
             <Image
-              source="https://customer-assets.emergentagent.com/job_clean-reserve-app/artifacts/aqq89zak_IMG_1705.jpg"
+              source="https://customer-assets.emergentagent.com/job_clean-reserve-app/artifacts/nj4sz9mu_IMG_1707.PNG"
               style={styles.bannerImage}
               contentFit="cover"
             />
