@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -19,7 +18,7 @@ import { useAuth } from "@/src/lib/auth";
 import { colors, radii, shadow, spacing } from "@/src/theme";
 
 export default function SignInScreen() {
-  const { signIn, signInWithGoogleSession } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,42 +45,9 @@ export default function SignInScreen() {
     setError(null);
     setLoading(true);
     try {
-      const redirectUrl =
-        Platform.OS === "web"
-          ? window.location.origin + "/"
-          : Linking.createURL("auth");
-      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-
-      if (Platform.OS === "web") {
-        window.location.href = authUrl;
-        return;
-      }
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-      if (result.type !== "success" || !result.url) {
-        setLoading(false);
-        return;
-      }
-      const url = result.url;
-      let sessionId: string | null = null;
-      const hashIdx = url.indexOf("#");
-      if (hashIdx >= 0) {
-        const params = new URLSearchParams(url.slice(hashIdx + 1));
-        sessionId = params.get("session_id");
-      }
-      if (!sessionId) {
-        const queryIdx = url.indexOf("?");
-        if (queryIdx >= 0) {
-          const params = new URLSearchParams(url.slice(queryIdx + 1));
-          sessionId = params.get("session_id");
-        }
-      }
-      if (!sessionId) {
-        setError("Sessão Google inválida.");
-        return;
-      }
-      await signInWithGoogleSession(sessionId);
-      router.replace("/(tabs)/home");
+      await signInWithGoogle();
+      // On web the page redirects; on native the auth state listener picks it up.
+      if (Platform.OS !== "web") router.replace("/(tabs)/home");
     } catch (e: any) {
       setError(e.message ?? "Erro Google.");
     } finally {
@@ -95,10 +61,7 @@ export default function SignInScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.brandRow}>
             <View style={styles.boltCircle}>
               <MaterialCommunityIcons name="flash" size={22} color="#fff" />
@@ -178,6 +141,12 @@ export default function SignInScreen() {
               Registar
             </Text>
           </TouchableOpacity>
+
+          {Platform.OS !== "web" && (
+            <Text style={styles.deepLinkHint} testID="sign-in-deeplink-hint">
+              Redirect Google: {Linking.createURL("auth")}
+            </Text>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -239,4 +208,5 @@ const styles = StyleSheet.create({
   googleText: { color: colors.text, fontSize: 15, fontWeight: "600" },
   footerRow: { flexDirection: "row", justifyContent: "center", marginTop: spacing.xxl },
   footerText: { color: colors.textMuted, fontSize: 14 },
+  deepLinkHint: { color: colors.textMuted, fontSize: 10, textAlign: "center", marginTop: 16 },
 });
