@@ -1,8 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,55 +12,39 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import QuickBookingSheet from "@/src/components/QuickBookingSheet";
-import { Booking, listMyBookings, subscribeToMyBookings } from "@/src/lib/bookings";
-import { listServices, Service } from "@/src/lib/catalog";
-import { useAuth } from "@/src/lib/auth";
+import { SERVICES } from "@/src/data/services";
+import { api } from "@/src/lib/api";
 import { colors, radii, shadow, spacing } from "@/src/theme";
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pendente",
-  confirmed: "Confirmada",
-  in_progress: "Em curso",
-  completed: "Concluída",
-  cancelled: "Cancelada",
-};
-
-const STATUS_COLOR: Record<string, { bg: string; fg: string }> = {
-  pending: { bg: "#FFF4D6", fg: "#A36B00" },
-  confirmed: { bg: "#E6F7EF", fg: "#1FB36B" },
-  in_progress: { bg: "#EAF0FE", fg: "#1453E5" },
-  completed: { bg: "#EAF0FE", fg: "#1453E5" },
-  cancelled: { bg: "#FBE7E7", fg: "#E53935" },
+type Booking = {
+  id: string;
+  service_type: string;
+  plan_type?: string;
+  date: string;
+  time?: string;
+  address: string;
+  status: string;
+  created_at: string;
 };
 
 export default function ReservasScreen() {
-  const { profile, loading: authLoading } = useAuth();
   const [items, setItems] = useState<Booking[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
-
-  const clientId = profile?.id ?? null;
 
   const load = useCallback(async () => {
-    if (!clientId) {
-      setItems([]);
-      return;
-    }
     setError(null);
     setLoading(true);
     try {
-      const [bk, sv] = await Promise.all([listMyBookings(clientId), listServices()]);
-      setItems(bk);
-      setServices(sv);
+      const data = await api.listBookings();
+      setItems(data);
     } catch (e: any) {
       setError(e.message ?? "Erro ao carregar.");
     } finally {
       setLoading(false);
     }
-  }, [clientId]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,41 +52,14 @@ export default function ReservasScreen() {
     }, [load]),
   );
 
-  useEffect(() => {
-    if (!clientId) return;
-    setLive(true);
-    const off = subscribeToMyBookings(clientId, (row, event) => {
-      setItems((prev) => {
-        if (event === "DELETE") return prev.filter((b) => b.id !== row.id);
-        const idx = prev.findIndex((b) => b.id === row.id);
-        if (idx === -1) return [row, ...prev];
-        const copy = prev.slice();
-        copy[idx] = row;
-        return copy;
-      });
-    });
-    return () => {
-      setLive(false);
-      off();
-    };
-  }, [clientId]);
-
-  const labelFor = (id: string | null) =>
-    services.find((s) => s.id === id)?.name ?? "Serviço";
+  const labelFor = (id: string) =>
+    SERVICES.find((s) => s.id === id)?.name ?? id;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
         <Text style={styles.title}>As minhas reservas</Text>
-        <View style={styles.subRow}>
-          <Text style={styles.sub}>Sincronizado em tempo real com Admin e Pro.</Text>
-          <View style={styles.liveDot} testID="reservas-live-status">
-            <View style={[styles.dot, { backgroundColor: live ? colors.success : colors.textMuted }]} />
-            <Text style={[styles.liveText, { color: live ? colors.success : colors.textMuted }]}>
-              {live ? "Ligado" : "Offline"}
-            </Text>
-          </View>
-        </View>
+        <Text style={styles.sub}>Acompanhe o estado das suas reservas FlashClean.</Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.list}
@@ -115,11 +71,6 @@ export default function ReservasScreen() {
             {error}
           </Text>
         )}
-        {authLoading || (loading && items.length === 0) ? (
-          <View style={{ paddingVertical: 40, alignItems: "center" }}>
-            <ActivityIndicator color={colors.brand} />
-          </View>
-        ) : null}
         {!loading && items.length === 0 && (
           <View style={styles.empty} testID="reservas-empty">
             <View style={styles.emptyIcon}>
@@ -127,7 +78,7 @@ export default function ReservasScreen() {
             </View>
             <Text style={styles.emptyTitle}>Sem reservas ainda</Text>
             <Text style={styles.emptySub}>
-              Faça a sua primeira reserva e veja-a aqui em tempo real.
+              Faça a sua primeira reserva e veja o histórico aqui.
             </Text>
             <TouchableOpacity
               testID="reservas-new-button"
@@ -138,54 +89,37 @@ export default function ReservasScreen() {
             </TouchableOpacity>
           </View>
         )}
-        {items.map((b) => {
-          const status = b.status ?? "pending";
-          const sc = STATUS_COLOR[status] ?? STATUS_COLOR.pending;
-          return (
-            <View key={b.id} style={styles.card} testID={`reserva-${b.id}`}>
-              <View style={styles.cardRow}>
-                <Text style={styles.cardTitle}>{labelFor(b.service_id)}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                  <Text style={[styles.statusText, { color: sc.fg }]}>
-                    {STATUS_LABEL[status] ?? status}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.meta}>
-                <MaterialCommunityIcons name="calendar" size={14} color={colors.textMuted} />
-                <Text style={styles.metaText}>
-                  {b.scheduled_date}
-                  {b.scheduled_time ? ` · ${b.scheduled_time.slice(0, 5)}` : ""}
+        {items.map((b) => (
+          <View key={b.id} style={styles.card} testID={`reserva-${b.id}`}>
+            <View style={styles.cardRow}>
+              <Text style={styles.cardTitle}>{labelFor(b.service_type)}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: colors.successSoft }]}>
+                <Text style={[styles.statusText, { color: colors.success }]}>
+                  {b.status === "pending" ? "Pendente" : b.status}
                 </Text>
               </View>
-              {!!b.service_address && (
-                <View style={styles.meta}>
-                  <MaterialCommunityIcons name="map-marker" size={14} color={colors.textMuted} />
-                  <Text style={styles.metaText}>
-                    {b.service_address}
-                    {b.city ? `, ${b.city}` : ""}
-                  </Text>
-                </View>
-              )}
-              {b.total_price != null && (
-                <View style={styles.meta}>
-                  <MaterialCommunityIcons name="currency-eur" size={14} color={colors.brand} />
-                  <Text style={[styles.metaText, { color: colors.brand, fontWeight: "700" }]}>
-                    {Number(b.total_price).toFixed(2).replace(".", ",")} €
-                  </Text>
-                </View>
-              )}
-              {b.is_recurring && (
-                <View style={styles.meta}>
-                  <MaterialCommunityIcons name="sync" size={14} color={colors.brand} />
-                  <Text style={[styles.metaText, { color: colors.brand, fontWeight: "700" }]}>
-                    Plano {b.frequency}
-                  </Text>
-                </View>
-              )}
             </View>
-          );
-        })}
+            <View style={styles.meta}>
+              <MaterialCommunityIcons name="calendar" size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>
+                {b.date}
+                {b.time ? ` · ${b.time}` : ""}
+              </Text>
+            </View>
+            <View style={styles.meta}>
+              <MaterialCommunityIcons name="map-marker" size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>{b.address}</Text>
+            </View>
+            {b.plan_type && b.plan_type !== "single" && (
+              <View style={styles.meta}>
+                <MaterialCommunityIcons name="refresh" size={14} color={colors.brand} />
+                <Text style={[styles.metaText, { color: colors.brand, fontWeight: "700" }]}>
+                  Plano {b.plan_type}
+                </Text>
+              </View>
+            )}
+          </View>
+        ))}
         <View style={{ height: 90 }} />
       </ScrollView>
       <QuickBookingSheet visible={open} onClose={() => setOpen(false)} />
@@ -197,11 +131,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: spacing.lg, paddingTop: 6, paddingBottom: spacing.sm },
   title: { fontSize: 24, fontWeight: "800", color: colors.text },
-  subRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
-  sub: { fontSize: 12, color: colors.textMuted, flex: 1 },
-  liveDot: { flexDirection: "row", alignItems: "center", gap: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  liveText: { fontSize: 11, fontWeight: "700" },
+  sub: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: 12 },
   empty: { alignItems: "center", paddingVertical: 60 },
   emptyIcon: {
@@ -226,7 +156,12 @@ const styles = StyleSheet.create({
     ...shadow.floating,
   },
   primaryBtnText: { color: "#fff", fontWeight: "700" },
-  card: { backgroundColor: colors.card, borderRadius: radii.lg, padding: 14, ...shadow.card },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: 14,
+    ...shadow.card,
+  },
   cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: { fontSize: 15, fontWeight: "800", color: colors.text, flex: 1, marginRight: 8 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.pill },

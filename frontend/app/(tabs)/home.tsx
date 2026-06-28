@@ -1,10 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,8 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import QuickBookingSheet from "@/src/components/QuickBookingSheet";
-import { BENEFITS, PLANS, STEPS, mapServiceIcon } from "@/src/data/services";
-import { listServices, Service } from "@/src/lib/catalog";
+import { BENEFITS, PLANS, SERVICES, STEPS } from "@/src/data/services";
 import { colors, radii, shadow, spacing } from "@/src/theme";
 
 function Logo() {
@@ -36,39 +33,29 @@ function Logo() {
   );
 }
 
+function ServiceIcon({ name, color }: { name: string; color: string }) {
+  const map: Record<string, any> = {
+    home: "home-variant",
+    "office-building": "office-building",
+    tools: "tools",
+    car: "car",
+    sofa: "sofa",
+    broom: "broom",
+  };
+  return <MaterialCommunityIcons name={map[name] ?? "home-variant"} size={22} color={color} />;
+}
+
 export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const [quickOpen, setQuickOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string | undefined>();
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await listServices();
-      setServices(data);
-    } catch (e: any) {
-      setError(e.message ?? "Erro a carregar serviços.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const openBooking = (id?: string) => {
     setSelectedService(id);
     setQuickOpen(true);
   };
 
-  const filtered = services.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()),
-  );
-  const topServices = filtered.slice(0, 3);
+  const topServices = SERVICES.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -76,7 +63,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         testID="home-scroll"
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
       >
         {/* HEADER */}
         <View style={styles.header}>
@@ -94,9 +80,11 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* TITLE */}
         <Text style={styles.title}>O que pretende limpar hoje?</Text>
         <Text style={styles.subtitle}>Reserve em menos de 60 segundos.</Text>
 
+        {/* SEARCH */}
         <View style={styles.searchRow}>
           <View style={styles.searchField}>
             <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
@@ -164,47 +152,50 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {loading ? (
-          <View style={styles.loading} testID="services-loading">
-            <ActivityIndicator color={colors.brand} />
-          </View>
-        ) : error ? (
-          <Text testID="services-error" style={styles.errorText}>
-            {error}
-          </Text>
-        ) : (
-          <View style={styles.servicesRow}>
-            {topServices.map((s) => (
-              <Pressable
-                key={s.id}
-                style={styles.serviceCard}
-                onPress={() => openBooking(s.id)}
-                testID={`service-card-${s.slug}`}
-              >
-                <View style={styles.serviceImageWrap}>
-                  {s.image_url ? (
-                    <Image source={s.image_url} style={styles.serviceImage} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.serviceImage, { backgroundColor: "#EAF0FE" }]} />
-                  )}
-                  <View style={styles.serviceIconCircle}>
-                    <MaterialCommunityIcons
-                      name={mapServiceIcon(s.icon) as any}
-                      size={18}
-                      color={colors.brand}
-                    />
-                  </View>
+        <View style={styles.servicesRow}>
+          {topServices.map((s) => (
+            <Pressable
+              key={s.id}
+              style={styles.serviceCard}
+              onPress={() => openBooking(s.id)}
+              testID={`service-card-${s.id}`}
+            >
+              <View style={styles.serviceImageWrap}>
+                <Image source={s.image} style={styles.serviceImage} contentFit="cover" />
+                <View style={[styles.serviceBadge, { backgroundColor: s.badgeColor }]}>
+                  <MaterialCommunityIcons
+                    name="star"
+                    size={10}
+                    color={s.badgeColor === colors.accent ? colors.brandDark : "#fff"}
+                  />
+                  <Text
+                    style={[
+                      styles.serviceBadgeText,
+                      { color: s.badgeColor === colors.accent ? colors.brandDark : "#fff" },
+                    ]}
+                  >
+                    {s.badge}
+                  </Text>
                 </View>
-                <Text style={styles.serviceName} numberOfLines={1}>
-                  {s.name}
+                <View style={styles.serviceIconCircle}>
+                  <ServiceIcon name={s.iconName} color={colors.brand} />
+                </View>
+              </View>
+              <Text style={styles.serviceName} numberOfLines={1}>
+                {s.name}
+              </Text>
+              <View style={styles.ratingRow}>
+                <MaterialCommunityIcons name="star" size={12} color={colors.star} />
+                <Text style={styles.ratingText}>
+                  {s.rating} ({s.reviews})
                 </Text>
-                <Text style={styles.serviceMeta} numberOfLines={1}>
-                  Reservar →
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
+              </View>
+              <Text style={styles.servicePrice}>
+                Desde {s.priceFrom.toFixed(2).replace(".", ",")}€
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* PLANS */}
         <View style={styles.plansCard} testID="home-plans">
@@ -242,6 +233,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* HOW IT WORKS */}
         <Text style={styles.stepsTitle}>Reserva em menos de 60 segundos</Text>
         <View style={styles.stepsRow}>
           {STEPS.map((s, idx) => (
@@ -277,6 +269,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+
+  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -318,8 +312,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   badgeText: { color: "#fff", fontSize: 9, fontWeight: "700" },
+
+  // Title
   title: { fontSize: 19, fontWeight: "800", color: colors.text, marginTop: 4 },
   subtitle: { fontSize: 11, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
+
+  // Search
   searchRow: { flexDirection: "row", gap: 10, marginBottom: spacing.md },
   searchField: {
     flex: 1,
@@ -342,6 +340,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...shadow.card,
   },
+
+  // Banner
   banner: {
     flexDirection: "row",
     backgroundColor: colors.brandDark,
@@ -385,6 +385,32 @@ const styles = StyleSheet.create({
   bannerBtnText: { color: colors.brand, fontSize: 13, fontWeight: "800" },
   bannerRight: { flex: 4, position: "relative" },
   bannerImage: { width: "100%", height: "100%" },
+  bannerBadge: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    left: 10,
+    backgroundColor: "rgba(11,30,92,0.85)",
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bannerBadgeAvatars: { width: 50, height: 22, position: "relative" },
+  avatarDot: {
+    position: "absolute",
+    top: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  bannerBadgeNum: { color: colors.accent, fontWeight: "800", fontSize: 13 },
+  bannerBadgeText: { color: "#fff", fontSize: 10 },
+
+  // Benefits
   benefits: {
     flexDirection: "row",
     backgroundColor: colors.card,
@@ -396,6 +422,8 @@ const styles = StyleSheet.create({
   },
   benefitCol: { flex: 1, alignItems: "center", gap: 8, paddingHorizontal: 4 },
   benefitText: { fontSize: 11, color: colors.text, textAlign: "center", lineHeight: 13, fontWeight: "600" },
+
+  // Sections
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -405,8 +433,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   linkText: { color: colors.brand, fontWeight: "700", fontSize: 13 },
-  loading: { paddingVertical: 24, alignItems: "center" },
-  errorText: { color: colors.danger, paddingVertical: 12 },
+
+  // Service cards
   servicesRow: { flexDirection: "row", gap: 10, marginBottom: spacing.lg },
   serviceCard: {
     flex: 1,
@@ -415,13 +443,20 @@ const styles = StyleSheet.create({
     padding: 8,
     ...shadow.card,
   },
-  serviceImageWrap: {
-    borderRadius: radii.md,
-    overflow: "hidden",
-    position: "relative",
-    height: 92,
-  },
+  serviceImageWrap: { borderRadius: radii.md, overflow: "hidden", position: "relative", height: 92 },
   serviceImage: { width: "100%", height: "100%" },
+  serviceBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+  },
+  serviceBadgeText: { fontSize: 9, fontWeight: "800" },
   serviceIconCircle: {
     position: "absolute",
     bottom: -14,
@@ -435,7 +470,11 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   serviceName: { marginTop: 18, fontSize: 12, fontWeight: "800", color: colors.text },
-  serviceMeta: { color: colors.brand, fontSize: 11, fontWeight: "700", marginTop: 4 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 },
+  ratingText: { fontSize: 11, color: colors.textMuted, fontWeight: "600" },
+  servicePrice: { color: colors.brand, fontSize: 12, fontWeight: "800", marginTop: 4 },
+
+  // Plans
   plansCard: {
     flexDirection: "row",
     backgroundColor: colors.brandDark,
@@ -491,6 +530,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   popularText: { fontSize: 8, fontWeight: "800", color: colors.brandDark },
+
+  // Steps
   stepsTitle: {
     fontSize: 14,
     color: colors.brand,
@@ -510,5 +551,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   stepLabel: { fontSize: 10, color: colors.text, fontWeight: "600", textAlign: "center" },
-  stepArrow: { position: "absolute", right: -7, top: 10 },
+  stepArrow: {
+    position: "absolute",
+    right: -7,
+    top: 10,
+  },
 });

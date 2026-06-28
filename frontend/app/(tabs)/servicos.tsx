@@ -1,10 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,34 +12,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import QuickBookingSheet from "@/src/components/QuickBookingSheet";
-import { listServices, Service } from "@/src/lib/catalog";
+import { SERVICES } from "@/src/data/services";
 import { colors, radii, shadow, spacing } from "@/src/theme";
 
 export default function ServicosScreen() {
   const [search, setSearch] = useState("");
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | undefined>();
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await listServices();
-      setServices(data);
-    } catch (e: any) {
-      setError(e.message ?? "Erro a carregar.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const list = services.filter((s) =>
+  const list = SERVICES.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -67,43 +46,43 @@ export default function ServicosScreen() {
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
       >
-        {error && (
-          <Text testID="servicos-error" style={{ color: colors.danger }}>
-            {error}
-          </Text>
-        )}
-        {loading && !services.length && (
-          <View style={{ paddingVertical: 40, alignItems: "center" }}>
-            <ActivityIndicator color={colors.brand} />
-          </View>
-        )}
         {list.map((s) => (
           <Pressable
             key={s.id}
-            testID={`servico-item-${s.slug}`}
+            testID={`servico-item-${s.id}`}
             onPress={() => {
               setSelected(s.id);
               setOpen(true);
             }}
             style={styles.row}
           >
-            {s.image_url ? (
-              <Image source={s.image_url} style={styles.thumb} contentFit="cover" />
-            ) : (
-              <View style={[styles.thumb, { backgroundColor: "#EAF0FE" }]} />
-            )}
+            <Image source={s.image} style={styles.thumb} contentFit="cover" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{s.name}</Text>
-              {!!s.description && (
-                <Text style={styles.desc} numberOfLines={2}>
-                  {s.description}
-                </Text>
-              )}
+              <View style={styles.rowHead}>
+                <Text style={styles.name}>{s.name}</Text>
+                <View style={[styles.tinyBadge, { backgroundColor: s.badgeColor }]}>
+                  <Text
+                    style={[
+                      styles.tinyBadgeText,
+                      { color: s.badgeColor === colors.accent ? colors.brandDark : "#fff" },
+                    ]}
+                  >
+                    {s.badge}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.desc} numberOfLines={2}>
+                {s.description}
+              </Text>
               <View style={styles.metaRow}>
-                <MaterialCommunityIcons name="arrow-right" size={14} color={colors.brand} />
-                <Text style={styles.metaCta}>Ver detalhes &amp; reservar</Text>
+                <MaterialCommunityIcons name="star" size={13} color={colors.star} />
+                <Text style={styles.metaText}>
+                  {s.rating} · {s.reviews} avaliações
+                </Text>
+                <Text style={styles.price}>
+                  · Desde {s.priceFrom.toFixed(2).replace(".", ",")}€
+                </Text>
               </View>
             </View>
           </Pressable>
@@ -148,8 +127,12 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   thumb: { width: 90, height: 90, borderRadius: radii.md },
-  name: { fontSize: 14, fontWeight: "800", color: colors.text },
+  rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  name: { fontSize: 14, fontWeight: "800", color: colors.text, flex: 1 },
+  tinyBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: radii.pill },
+  tinyBadgeText: { fontSize: 9, fontWeight: "800" },
   desc: { fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8 },
-  metaCta: { fontSize: 12, color: colors.brand, fontWeight: "800" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, flexWrap: "wrap" },
+  metaText: { fontSize: 11, color: colors.textMuted, fontWeight: "600" },
+  price: { fontSize: 12, color: colors.brand, fontWeight: "800" },
 });

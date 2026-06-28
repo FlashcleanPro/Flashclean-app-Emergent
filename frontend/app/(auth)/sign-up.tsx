@@ -23,22 +23,16 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
   const onSubmit = async () => {
     setError(null);
-    setInfo(null);
     if (!email.trim() || password.length < 6) {
       setError("Email válido e palavra-passe (mín. 6) obrigatórios.");
       return;
     }
     setLoading(true);
     try {
-      const { needsConfirmation } = await signUp(email.trim(), password, name.trim() || undefined);
-      if (needsConfirmation) {
-        setInfo("Confirme o email para ativar a conta. Depois inicie sessão.");
-        return;
-      }
+      await signUp(email.trim(), password, name.trim() || undefined);
       router.replace("/(tabs)/home");
     } catch (e: any) {
       setError(e.message ?? "Falha no registo.");
@@ -107,11 +101,6 @@ export default function SignUpScreen() {
               {error}
             </Text>
           )}
-          {info && (
-            <Text testID="sign-up-info" style={styles.info}>
-              {info}
-            </Text>
-          )}
 
           <TouchableOpacity
             testID="sign-up-submit-button"
@@ -166,7 +155,6 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 0 },
   error: { color: colors.danger, marginBottom: 8, fontSize: 13 },
-  info: { color: colors.success, marginBottom: 8, fontSize: 13 },
   primaryBtn: {
     backgroundColor: colors.brand,
     height: 52,

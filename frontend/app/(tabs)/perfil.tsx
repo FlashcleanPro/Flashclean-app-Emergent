@@ -16,22 +16,18 @@ const ITEMS: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string
 ];
 
 export default function PerfilScreen() {
-  const { user, profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   const onLogout = async () => {
     await signOut();
     router.replace("/(auth)/sign-in");
   };
 
-  const displayName = profile?.full_name || user?.user_metadata?.full_name || "Cliente FlashClean";
-  const email = user?.email ?? "";
-  const initials = (displayName || email || "?")
+  const initials = (user?.full_name || user?.email || "?")
     .split(" ")
     .map((s) => s.charAt(0).toUpperCase())
     .slice(0, 2)
     .join("");
-
-  const providers = (user?.app_metadata?.providers as string[] | undefined) ?? [];
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -39,16 +35,16 @@ export default function PerfilScreen() {
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
-        <Text style={styles.name}>{displayName}</Text>
-        <Text style={styles.email}>{email}</Text>
+        <Text style={styles.name}>{user?.full_name ?? "Cliente FlashClean"}</Text>
+        <Text style={styles.email}>{user?.email}</Text>
         <View style={styles.providers}>
-          {providers.includes("email") && (
+          {user?.auth_providers?.includes("password") && (
             <View style={styles.pill}>
               <MaterialCommunityIcons name="email-outline" size={12} color={colors.brand} />
               <Text style={styles.pillText}>Email</Text>
             </View>
           )}
-          {providers.includes("google") && (
+          {user?.auth_providers?.includes("google") && (
             <View style={styles.pill}>
               <MaterialCommunityIcons name="google" size={12} color={colors.brand} />
               <Text style={styles.pillText}>Google</Text>

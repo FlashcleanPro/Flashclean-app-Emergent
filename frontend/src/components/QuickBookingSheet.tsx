@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,10 +13,8 @@ import {
   View,
 } from "react-native";
 
-import { PLANS } from "@/src/data/services";
-import { useAuth } from "@/src/lib/auth";
-import { createBooking } from "@/src/lib/bookings";
-import { listServices, Service } from "@/src/lib/catalog";
+import { api } from "@/src/lib/api";
+import { PLANS, SERVICES } from "@/src/data/services";
 import { colors, radii, shadow, spacing } from "@/src/theme";
 
 type Props = {
@@ -27,51 +24,28 @@ type Props = {
 };
 
 export default function QuickBookingSheet({ visible, onClose, initialServiceId }: Props) {
-  const { user, profile } = useAuth();
-
-  const [services, setServices] = useState<Service[]>([]);
-  const [serviceId, setServiceId] = useState<string | undefined>(initialServiceId);
-  const [planId, setPlanId] = useState("single");
+  const [serviceId, setServiceId] = useState<string>(initialServiceId ?? SERVICES[0].id);
+  const [planId, setPlanId] = useState<string>("single");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [address, setAddress] = useState("");
-  const [postal, setPostal] = useState("");
-  const [city, setCity] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<string | null>(null);
-  const [loadingServices, setLoadingServices] = useState(false);
 
-  useEffect(() => {
-    if (!visible) return;
-    setLoadingServices(true);
-    listServices()
-      .then((data) => {
-        setServices(data);
-        if (!serviceId && data.length) setServiceId(initialServiceId ?? data[0].id);
-        if (initialServiceId) setServiceId(initialServiceId);
-      })
-      .catch((e) => setError(e.message ?? "Erro a carregar serviços."))
-      .finally(() => setLoadingServices(false));
-    // Prefill from profile
-    if (profile) {
-      if (!name) setName(profile.full_name ?? "");
-      if (!phone) setPhone(profile.phone ?? "");
-      if (!address) setAddress(profile.address ?? "");
-      if (!postal) setPostal(profile.postal_code ?? "");
-      if (!city) setCity(profile.city ?? "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, initialServiceId, profile]);
+  // Sync internal selection when caller passes a new service
+  if (initialServiceId && initialServiceId !== serviceId && visible && !confirmed) {
+    // soft sync — happens on open
+    setServiceId(initialServiceId);
+  }
 
   const close = () => {
     setError(null);
     setConfirmed(null);
     setDate("");
     setTime("");
+    setAddress("");
     setNotes("");
     setPlanId("single");
     onClose();
@@ -79,36 +53,19 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
 
   const submit = async () => {
     setError(null);
-    if (!user || !profile?.id) {
-      setError("Inicie sessão para reservar.");
-      return;
-    }
-    if (!serviceId) {
-      setError("Escolha um serviço.");
-      return;
-    }
-    if (!date.trim() || !time.trim() || !address.trim() || !name.trim() || !phone.trim()) {
-      setError("Preencha nome, telefone, data, hora e morada.");
+    if (!date.trim() || !address.trim()) {
+      setError("Indique a data e a morada do serviço.");
       return;
     }
     setSubmitting(true);
     try {
-      const plan = PLANS.find((p) => p.id === planId);
-      const res = await createBooking({
-        client_id: profile.id,
-        service_id: serviceId,
-        scheduled_date: date.trim(),
-        scheduled_time: time.trim().length === 5 ? `${time.trim()}:00` : time.trim(),
-        client_name: name.trim(),
-        client_email: user.email ?? "",
-        client_phone: phone.trim(),
-        service_address: address.trim(),
-        postal_code: postal.trim() || null,
-        city: city.trim() || null,
-        notes: notes.trim() || null,
-        is_recurring: planId !== "single",
-        frequency: plan?.frequency ?? "one_time",
-        payment_method: "pending",
+      const res = await api.createBooking({
+        service_type: serviceId,
+        plan_type: planId,
+        date: date.trim(),
+        time: time.trim() || undefined,
+        address: address.trim(),
+        notes: notes.trim() || undefined,
       });
       setConfirmed(res.id);
     } catch (e: any) {
@@ -118,10 +75,7 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
     }
   };
 
-  const planOptions = [
-    { id: "single", label: "Único", discount: "", frequency: "one_time" },
-    ...PLANS,
-  ];
+  const planOptions = [{ id: "single", label: "Único", discount: "" }, ...PLANS];
 
   return (
     <Modal
@@ -142,7 +96,7 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
               </View>
               <Text style={styles.confirmTitle}>Reserva confirmada!</Text>
               <Text style={styles.confirmSub}>
-                A sua reserva foi enviada para Admin e Pro em tempo real. Receberá um contacto da equipa em breve.
+                Receberá um contacto da nossa equipa em breve para confirmar a hora.
               </Text>
               <TouchableOpacity
                 testID="quick-book-close-button"
@@ -156,7 +110,7 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              style={{ maxHeight: 600 }}
+              style={{ maxHeight: 560 }}
             >
               <View style={styles.headerRow}>
                 <Text style={styles.headerTitle}>Reserva Rápida</Text>
@@ -167,31 +121,27 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
               <Text style={styles.headerSub}>Reserve em menos de 60 segundos.</Text>
 
               <Text style={styles.section}>Serviço</Text>
-              {loadingServices && services.length === 0 ? (
-                <ActivityIndicator color={colors.brand} />
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingRight: spacing.lg }}
-                >
-                  {services.map((s) => {
-                    const active = s.id === serviceId;
-                    return (
-                      <TouchableOpacity
-                        key={s.id}
-                        testID={`quick-book-service-${s.slug}`}
-                        onPress={() => setServiceId(s.id)}
-                        style={[styles.chip, active && styles.chipActive]}
-                      >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                          {s.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingRight: spacing.lg }}
+              >
+                {SERVICES.map((s) => {
+                  const active = s.id === serviceId;
+                  return (
+                    <TouchableOpacity
+                      key={s.id}
+                      testID={`quick-book-service-${s.id}`}
+                      onPress={() => setServiceId(s.id)}
+                      style={[styles.chip, active && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {s.shortName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
               <Text style={styles.section}>Plano</Text>
               <View style={styles.planRow}>
@@ -217,50 +167,25 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
                 })}
               </View>
 
-              <Text style={styles.section}>Nome</Text>
-              <View style={styles.field}>
-                <MaterialCommunityIcons name="account" size={20} color={colors.textMuted} />
-                <TextInput
-                  testID="quick-book-name-input"
-                  style={styles.input}
-                  placeholder="Nome completo"
-                  placeholderTextColor={colors.textMuted}
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-              <Text style={styles.section}>Telefone</Text>
-              <View style={styles.field}>
-                <MaterialCommunityIcons name="phone" size={20} color={colors.textMuted} />
-                <TextInput
-                  testID="quick-book-phone-input"
-                  style={styles.input}
-                  placeholder="9XX XXX XXX"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={setPhone}
-                />
-              </View>
               <Text style={styles.section}>Data</Text>
               <View style={styles.field}>
                 <MaterialCommunityIcons name="calendar" size={20} color={colors.textMuted} />
                 <TextInput
                   testID="quick-book-date-input"
                   style={styles.input}
-                  placeholder="YYYY-MM-DD"
+                  placeholder="Ex: 28/02/2026"
                   placeholderTextColor={colors.textMuted}
                   value={date}
                   onChangeText={setDate}
                 />
               </View>
-              <Text style={styles.section}>Hora</Text>
+              <Text style={styles.section}>Hora (opcional)</Text>
               <View style={styles.field}>
                 <MaterialCommunityIcons name="clock-outline" size={20} color={colors.textMuted} />
                 <TextInput
                   testID="quick-book-time-input"
                   style={styles.input}
-                  placeholder="HH:MM"
+                  placeholder="Ex: 10:00"
                   placeholderTextColor={colors.textMuted}
                   value={time}
                   onChangeText={setTime}
@@ -272,39 +197,11 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
                 <TextInput
                   testID="quick-book-address-input"
                   style={styles.input}
-                  placeholder="Rua, número"
+                  placeholder="Rua, número, cidade"
                   placeholderTextColor={colors.textMuted}
                   value={address}
                   onChangeText={setAddress}
                 />
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.section}>Código Postal</Text>
-                  <View style={styles.field}>
-                    <TextInput
-                      testID="quick-book-postal-input"
-                      style={styles.input}
-                      placeholder="0000-000"
-                      placeholderTextColor={colors.textMuted}
-                      value={postal}
-                      onChangeText={setPostal}
-                    />
-                  </View>
-                </View>
-                <View style={{ flex: 1.2 }}>
-                  <Text style={styles.section}>Cidade</Text>
-                  <View style={styles.field}>
-                    <TextInput
-                      testID="quick-book-city-input"
-                      style={styles.input}
-                      placeholder="Cidade"
-                      placeholderTextColor={colors.textMuted}
-                      value={city}
-                      onChangeText={setCity}
-                    />
-                  </View>
-                </View>
               </View>
               <Text style={styles.section}>Notas (opcional)</Text>
               <View style={[styles.field, { alignItems: "flex-start", height: 80, paddingTop: 12 }]}>
@@ -345,7 +242,10 @@ export default function QuickBookingSheet({ visible, onClose, initialServiceId }
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(11,30,92,0.45)" },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(11,30,92,0.45)",
+  },
   sheet: {
     position: "absolute",
     left: 0,
@@ -369,7 +269,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 20, fontWeight: "800", color: colors.text },
   headerSub: { color: colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: spacing.md },
-  section: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: spacing.md, marginBottom: 6 },
+  section: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: spacing.lg, marginBottom: 8 },
   chip: {
     paddingHorizontal: 14,
     height: 36,
@@ -403,7 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderRadius: radii.md,
     paddingHorizontal: 14,
-    height: 48,
+    height: 50,
     borderWidth: 1,
     borderColor: colors.border,
   },
